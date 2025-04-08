@@ -788,6 +788,7 @@ def bucketSortBinary2(arr, start, end):
     if isAlreadySorted:
         return arr
     
+    mini = arr[indexMin]
     maxi = arr[indexMax]
 
     if indexMin != start:
@@ -804,6 +805,10 @@ def bucketSortBinary2(arr, start, end):
         return arr
     
     bitNum = int(math.log2(maxi)) #find the bit MSB of the max value
+    mask = 1 << bitNum;
+    while(mask & mini) == (mask & maxi):    #find the first bit of mini and max which are different
+        bitNum -= 1
+        mask = mask >> 1
     bucketSortBinary3(arr, start, end, bitNum)
 
     return arr
