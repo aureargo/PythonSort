@@ -1,5 +1,6 @@
 from random import randint
 import math
+import sys
 
 def selectionSortMin(arr):
     size = len(arr)
@@ -147,11 +148,11 @@ def bubbleSortSpecial2(arr):
     return arr
 
     
-def cycleSort(arr):
-    cycleSort2(arr, 0, len(arr)-1)
+def cycleSortWithMark(arr):
+    cycleSortWithMark2(arr, 0, len(arr)-1)
     return arr
     
-def cycleSort2(arr, start, end):
+def cycleSortWithMark2(arr, start, end):
     size = end-start+1
     if size < 2:
         return
@@ -167,6 +168,11 @@ def cycleSort2(arr, start, end):
             continue
             
         val = arr[start2]
+        if(pos+1 < size and arrIsSorted[pos+1] == True and val <= arr[start2+1]):    #val is already at the correct position
+            arrIsSorted[pos] = True
+            start2+=2
+            continue
+
         nbInf = 0
         for j in range(start2+1, end2+1):
             if val > arr[j]:
@@ -712,7 +718,7 @@ def bucketSort2(arr, start, end, initNbBuckets=100):
             isAlreadySorted = False
         elif arr[i] > arr[indexMax]:
             indexMax = i
-        elif isAlreadySorted and arr[i] != arr[indexMax]:
+        elif isAlreadySorted and arr[i] < arr[i-1]:
             isAlreadySorted = False
 
     if isAlreadySorted:
@@ -782,7 +788,7 @@ def bucketSortBinary2(arr, start, end):
             isAlreadySorted = False
         elif arr[i] > arr[indexMax]:
             indexMax = i
-        elif isAlreadySorted and arr[i] != arr[indexMax]:
+        elif isAlreadySorted and arr[i] < arr[i-1]:
             isAlreadySorted = False
 
     if isAlreadySorted:
@@ -847,3 +853,172 @@ def bucketSortBinary3(arr, start, end, bitNum):
         return arr
     bucketSortBinary3(arr, start, end0, bitNum)
     bucketSortBinary3(arr, start1, end, bitNum)
+
+#in place, bucket sort with 16 buckets, 1 bucket per 4 bits at the beginning of numbers.
+def radix16Sort(arr):
+    radix16Sort2(arr, 0, len(arr)-1)
+    return arr
+
+def radix16Sort2(arr, start, end):
+    size = end-start+1
+    if size < 2:
+        return arr
+    
+    indexMin = start
+    indexMax = start
+    isAlreadySorted = True
+    #selectionSortMinMax to find mini and maxi
+    for i in range(1, size):
+        if arr[i] < arr[indexMin]:
+            indexMin = i
+            isAlreadySorted = False
+        elif arr[i] > arr[indexMax]:
+            indexMax = i
+        elif isAlreadySorted and arr[i] < arr[i-1]:
+            isAlreadySorted = False
+
+    if isAlreadySorted:
+        return arr
+    
+    mini = arr[indexMin]
+    maxi = arr[indexMax]
+
+    if indexMin != start:
+        arr[start], arr[indexMin] = arr[indexMin] , arr[start]
+        if indexMax == start:    #special case
+            indexMax = indexMin     #take the element which was moved from start to indexMin
+    if indexMax != end:
+        arr[end], arr[indexMax] = arr[indexMax], arr[end]
+                
+    start += 1
+    end -= 1
+
+    if size <= 3:  #all elements are equals
+        return arr
+    
+    bitNum = int(math.log2(maxi)) #find the bit MSB of the max value
+    mask = 1 << bitNum;
+    while(mask & mini) == (mask & maxi):    #find the first bit of mini and max which are different
+        bitNum -= 1
+        mask = mask >> 1
+
+    #bitNum = bitNum - (bitNum%4) #find the first bit of mini and max which are different and is a multiple of 4
+    bitNum -= 3 #-3 because we want to sort 4 bits at a time
+
+    radix16Sort3(arr, start, end, bitNum)
+
+    return arr
+
+def radix16Sort3(arr, start, end, bitNum):
+    size = end - start + 1
+    if(size < 18):
+        if size < 2:
+            return arr
+        return insertionSort2(arr, start, end)
+    elif (bitNum <= 0):
+        #if we are at the last 4 bits, we can use countSort
+        countSortRadix(arr, start, end, bitNum+4)
+        return arr
+
+    tabNbElemInBucket = [0 for _ in range(16)]
+
+    mask = 0b1111  # Mask for 4 bits
+    mask <<= bitNum  # Shift mask to the correct bit position
+
+    #first loop to count the number of elements in each bucket
+    for i in range(start, end + 1):
+        iBucket = (arr[i] & mask) >> bitNum
+        tabNbElemInBucket[iBucket] += 1
+
+
+    tabInsertBucket = [0 for _ in range(16)]
+    tabInsertBucket[0] = start
+    for i in range(1,16):
+         tabInsertBucket[i] = tabInsertBucket[i-1] + tabNbElemInBucket[i-1]
+    
+    tabEndBucket = [0 for _ in range(16)]
+    for i in range(0,15):
+        tabEndBucket[i] = tabInsertBucket[i+1]
+    tabEndBucket[15] = end+1
+
+    #second loop to put the elements in the correct block in initial array
+    currentBucket = 0
+    lastIndexBucket = 15
+    while(tabNbElemInBucket[lastIndexBucket] == 0):
+        lastIndexBucket -= 1
+    
+    while(currentBucket < lastIndexBucket):   # < 15 because when, in the future, currentIndex == 15, so all 
+        # remaining elements will be in the correct bucket (already move during previous swap)
+        while currentBucket < lastIndexBucket and tabInsertBucket[currentBucket] == tabEndBucket[currentBucket]:
+            currentBucket += 1
+
+        if currentBucket == lastIndexBucket:
+            break
+
+        iToMove = tabInsertBucket[currentBucket]
+        val = arr[iToMove]
+        iBucket = (val & mask) >> bitNum
+
+        #swap the element with the element of the bucket*
+        if(iBucket == currentBucket):
+            #if the element is already in the correct bucket, no move and we just need to increment the index
+            tabInsertBucket[currentBucket] += 1
+            continue
+        else:
+            while(iBucket != currentBucket):
+                #find a place to move "val" in the correct bloc/bucket, and keep the shrink value "val2" in memory for move it at its turn
+                jToReplace = tabInsertBucket[iBucket]
+                valToSave = arr[jToReplace]
+                jBucketToSave = (valToSave & mask) >> bitNum
+                while(jBucketToSave == iBucket):
+                    tabInsertBucket[jBucketToSave]+=1
+                    jToReplace+=1
+                    valToSave = arr[jToReplace]
+                    jBucketToSave = (valToSave & mask) >> bitNum
+
+                #move "val" at the correct place
+                arr[jToReplace] = val
+                tabInsertBucket[iBucket]+=1
+                val = valToSave
+                iBucket = jBucketToSave
+                #then, search a correct place for "val2" in next loop turn
+            arr[iToMove] = val
+            tabInsertBucket[currentBucket] += 1
+
+    for i in range(16):
+        if(tabNbElemInBucket[i] < 2):
+            continue
+        radix16Sort3(arr, tabEndBucket[i]-tabNbElemInBucket[i], tabEndBucket[i]-1, bitNum-4)
+
+    #print("isSorted? -> " , isSorted(arr, 0, end))
+    return arr
+
+
+def countSortRadix(arr, start, end, bitNum):
+    tabSize = 2**bitNum
+    tab = [0]*tabSize
+    mask = tabSize - 1
+
+    for i in range(start, end+1):
+        tab[arr[i] & mask] += 1
+
+    initVal = arr[start] & (-mask)
+    j = start
+    for i in range(0, tabSize):
+        while(tab[i] > 0):
+            arr[j] = initVal + i
+            j += 1
+            tab[i] -= 1
+    return arr
+
+
+def isSorted(arr, start, end):
+	res = True
+	val = arr[start]
+	for i in range(start+1, end+1):
+		val2 = arr[i]
+		if val > val2:
+			res = False
+			break
+		val = val2
+	return res ,i, val, val2

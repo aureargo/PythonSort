@@ -24,12 +24,13 @@ testTimSort = False
 testIntroSortWithDifferentsPack = False
 
 testBucketSort = True
-testBucketSortBinary =  True
+testBucketSortBinary = True
+testRadix16Sort = True
 
 
 testN2Sort = False
 testNLogNSort = False
-testBucketSortWithDifferentsPack = True
+testBucketSortWithDifferentsPack = False
 
 if(testN2Sort):
 	testBubbleSort = True
@@ -52,6 +53,7 @@ if(testNLogNSort):
 	testTimSort = True
 	testBucketSort = True
 	testBucketSortBinary = True
+	testRadix16Sort = True
 
 
 def copy(arr):
@@ -147,7 +149,7 @@ if testSelectionSortMinMax:
 	test(allSort.selectionSortMinMax)
 
 if testCycleSort:
-	test(allSort.cycleSort)
+	test(allSort.cycleSortWithMark)
 	
 if testCountSort:
 	test(allSort.countSort)
@@ -190,6 +192,9 @@ if testBucketSort:
 
 if testBucketSortBinary:
 	test(allSort.bucketSortBinary)
+
+if testRadix16Sort:
+	test(allSort.radix16Sort)
 
 if testIntroSortWithDifferentsPack:
 	print("")
